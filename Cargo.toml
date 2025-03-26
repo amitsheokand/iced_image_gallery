@@ -1,0 +1,14 @@
+[package]
+name = "iced_image_gallery"
+version = "0.1.0"
+authors = ["Amit Sheokand <amix.sheokand@gmail.com>"]
+edition = "2024"
+
+[dependencies]
+iced = { git = "https://github.com/iced-rs/iced.git", branch = "master", features = [
+     "tokio", "image"
+]}
+
+bytes.workspace = true
+image.workspace = true
+tokio.workspace = true

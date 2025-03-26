@@ -6,6 +6,8 @@ use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use crate::helper;
+
 #[derive(Debug, Clone)]
 pub struct Image {
     pub id: Id,
@@ -16,25 +18,22 @@ impl Image {
     pub const LIMIT: usize = 1000;
 
     pub async fn list() -> Result<Vec<Self>, Error> {
-        let mut images = Vec::new();
-        let mut id = 0;
+        Self::list_from_dir("images").await
+    }
 
-        // Read images from the images directory
-        if let Ok(entries) = std::fs::read_dir("images") {
-            for entry in entries {
-                if let Ok(entry) = entry {
-                    let path = entry.path();
-                    if path.extension().map_or(false, |ext| {
-                        ["jpg", "jpeg", "png", "gif"].contains(&ext.to_str().unwrap_or("").to_lowercase().as_str())
-                    }) {
-                        images.push(Image {
-                            id: Id(id),
-                            path,
-                        });
-                        id += 1;
-                    }
-                }
-            }
+    pub async fn list_from_dir(dir: &str) -> Result<Vec<Self>, Error> {
+        let paths = helper::list_image_files(dir);
+        Self::list_from_paths(paths).await
+    }
+
+    pub async fn list_from_paths(paths: Vec<PathBuf>) -> Result<Vec<Self>, Error> {
+        let mut images = Vec::new();
+        
+        for (id, path) in paths.into_iter().enumerate() {
+            images.push(Image {
+                id: Id(id as u32),
+                path,
+            });
         }
 
         Ok(images)

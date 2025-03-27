@@ -10,10 +10,16 @@ use iced::widget::{
 use iced::window;
 use iced::{
     Animation, ContentFit, Element, Fill, Subscription, Task, Theme,
-    color,
+    color, Rectangle,
 };
+use iced::widget::scrollable::Viewport;
+use iced::keyboard::Event;
+use iced::keyboard::key::Key;
+use iced::keyboard::key::Named;
+use iced::event::{self, Event as IcedEvent};
+use iced::keyboard::Event as KeyboardEvent;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
 pub struct Gallery {
@@ -22,6 +28,7 @@ pub struct Gallery {
     viewer: Viewer,
     now: Instant,
     image_dir: PathBuf,
+    // visible_ids: HashSet<Id>,
 }
 
 #[derive(Debug, Clone)]
@@ -34,6 +41,8 @@ pub enum Message {
     Open(Id),
     Close,
     Animate(Instant),
+    ViewportChanged(Viewport),
+    KeyPressed(Event),
 }
 
 impl Gallery {
@@ -46,6 +55,7 @@ impl Gallery {
                 viewer: Viewer::new(),
                 now: Instant::now(),
                 image_dir: PathBuf::from(&image_dir),
+                // visible_ids: HashSet::new(),
             },
             Task::perform(
                 async move { Image::list_from_paths(paths).await },
@@ -65,10 +75,21 @@ impl Gallery {
             .any(|preview| preview.is_animating(self.now))
             || self.viewer.is_animating(self.now);
 
+        let keyboard = event::listen().map(|event| {
+            if let IcedEvent::Keyboard(keyboard_event) = event {
+                Message::KeyPressed(keyboard_event)
+            } else {
+                Message::Animate(Instant::now())
+            }
+        });
+
         if is_animating {
-            window::frames().map(Message::Animate)
+            Subscription::batch([
+                window::frames().map(Message::Animate),
+                keyboard,
+            ])
         } else {
-            Subscription::none()
+            keyboard
         }
     }
 
@@ -127,7 +148,10 @@ impl Gallery {
                     return Task::none();
                 };
 
+                let current_index = self.images.iter().position(|img| img.id == id);
                 self.viewer.open();
+                self.viewer.current_id = Some(id);
+                self.viewer.current_index = current_index;
                 Task::perform(
                     image.download(Size::Original),
                     Message::ImageDownloaded,
@@ -139,6 +163,78 @@ impl Gallery {
             }
             Message::Animate(now) => {
                 self.now = now;
+                Task::none()
+            }
+            Message::ViewportChanged(viewport) => {
+                // Calculate which images are visible based on viewport
+                // self.visible_ids.clear();
+                // let card_width = Preview::WIDTH as f32;
+                // let card_height = Preview::HEIGHT as f32;
+                // let spacing = 4.0;
+                
+                // let content_bounds = viewport.content_bounds();
+                // let bounds = viewport.bounds();
+                // let offset = viewport.absolute_offset();
+                
+                // for (id, image) in self.images.iter().enumerate() {
+                //     let row = (id as f32 / (content_bounds.width / (card_width + spacing)).floor()) as u32;
+                //     let col = (id as f32 % (content_bounds.width / (card_width + spacing)).floor()) as u32;
+                    
+                //     let x = col as f32 * (card_width + spacing);
+                //     let y = row as f32 * (card_height + spacing);
+                    
+                //     if x >= offset.x - card_width && 
+                //        x <= offset.x + bounds.width &&
+                //        y >= offset.y - card_height && 
+                //        y <= offset.y + bounds.height {
+                //         self.visible_ids.insert(image.id);
+                //     }
+                // }
+
+
+                // println!("Visible IDs: {:?}", self.visible_ids);
+                Task::none()
+                
+            }
+            Message::KeyPressed(event) => {
+                if let Event::KeyPressed { key, .. } = event {
+                    if self.viewer.is_open(self.now) {
+                        match key {
+                            Key::Named(Named::ArrowLeft) => {
+                                let current_index = self.viewer.current_index.unwrap();
+                                if current_index > 0 {
+                                    let prev_image = &self.images[current_index - 1];
+                                    println!("Loading previous image: {:?}", prev_image);
+                                    self.viewer.current_index = Some(current_index - 1);
+                                    self.viewer.current_id = Some(prev_image.id);
+                                    // self.viewer.open();
+                                    return Task::perform(
+                                        prev_image.clone().download(Size::Original),
+                                        Message::ImageDownloaded,
+                                    );
+                                }
+                            }
+                            Key::Named(Named::ArrowRight) => {
+                                let current_index = self.viewer.current_index.unwrap();
+                                if current_index < self.images.len() - 1 {
+                                    let next_image = &self.images[current_index + 1];
+                                    println!("Loading next image: {:?}", next_image);
+                                    self.viewer.current_index = Some(current_index + 1);
+                                    self.viewer.current_id = Some(next_image.id);
+                                    // self.viewer.open();
+                                return Task::perform(
+                                    next_image.clone().download(Size::Original),
+                                    Message::ImageDownloaded,
+                                );
+                                }
+                            }
+                            Key::Named(Named::Escape) => {
+                                self.viewer.close();
+                            }
+                            _ => {}
+                        }
+                    }
+                }
                 Task::none()
             }
             Message::ImagesListed(Err(error))
@@ -161,8 +257,10 @@ impl Gallery {
         .spacing(4)
         .wrap();
 
-        let content =
-            container(scrollable(center_x(gallery)).spacing(4)).padding(4);
+        let content = container(scrollable(center_x(gallery))
+            .spacing(4)
+            .on_scroll(Message::ViewportChanged))
+            .padding(4);
 
         let viewer = self.viewer.view(self.now);
 
@@ -292,6 +390,8 @@ struct Viewer {
     image: Option<image::Handle>,
     background_fade_in: Animation<bool>,
     image_fade_in: Animation<bool>,
+    current_id: Option<Id>,
+    current_index: Option<usize>,
 }
 
 impl Viewer {
@@ -304,7 +404,13 @@ impl Viewer {
             image_fade_in: Animation::new(false)
                 .quick()
                 .easing(animation::Easing::EaseInOut),
+            current_id: None,
+            current_index:  Some(0),
         }
+    }
+
+    fn is_open(&self, now: Instant) -> bool {
+        self.background_fade_in.interpolate(0.0, 0.8, now) > 0.0
     }
 
     fn open(&mut self) {
@@ -325,6 +431,7 @@ impl Viewer {
     fn close(&mut self) {
         self.background_fade_in.go_mut(false);
         self.image_fade_in.go_mut(false);
+        self.current_id = None;
     }
 
     fn is_animating(&self, now: Instant) -> bool {

@@ -1,11 +1,11 @@
-use crate::image_data::{Id, Rgba};
+use crate::core::{Id, Rgba};
 use iced::animation;
 use iced::time::Instant;
 use iced::widget::{container, horizontal_space, image, mouse_area, opaque};
 use iced::{Element, Fill, Theme, Animation};
 use iced::color;
 
-use crate::gallery::Message;
+use crate::ui::gallery::Message;
 
 pub struct Viewer {
     image: Option<image::Handle>,

@@ -1,6 +1,8 @@
-use crate::image_data::{Error, Id, ImageData, Rgba, Size};
-use crate::helper;
-use crate::components::{Preview, Viewer, card, placeholder};
+use crate::core::{Error, Id, ImageData, Rgba, Size};
+use crate::core::helper;
+use crate::ui::gallery::components::{Preview, Viewer, card, placeholder};
+
+mod components;
 
 use iced::animation;
 use iced::time::Instant;

@@ -6,7 +6,7 @@ use std::io;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use crate::helper;
+use crate::core::helper;
 
 #[derive(Debug, Clone)]
 pub struct ImageData {

@@ -1,10 +1,10 @@
-use crate::image_data::{Id, ImageData, Rgba};
+use crate::core::{Id, ImageData, Rgba};
 use iced::animation;
 use iced::time::Instant;
 use iced::widget::{button, container, horizontal_space, image, mouse_area, pop};
 use iced::{ContentFit, Element, Fill, Theme, Animation};
 
-use crate::gallery::Message;
+use crate::ui::gallery::Message;
 
 pub fn card<'a>(
     metadata: &'a ImageData,

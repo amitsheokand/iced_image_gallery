@@ -9,28 +9,19 @@ use std::sync::Arc;
 use crate::helper;
 
 #[derive(Debug, Clone)]
-pub struct Image {
+pub struct ImageData {
     pub id: Id,
     path: PathBuf,
 }
 
-impl Image {
+impl ImageData {
     pub const LIMIT: usize = 1000;
-
-    pub async fn list() -> Result<Vec<Self>, Error> {
-        Self::list_from_dir("images").await
-    }
-
-    pub async fn list_from_dir(dir: &str) -> Result<Vec<Self>, Error> {
-        let paths = helper::list_image_files(dir);
-        Self::list_from_paths(paths).await
-    }
 
     pub async fn list_from_paths(paths: Vec<PathBuf>) -> Result<Vec<Self>, Error> {
         let mut images = Vec::new();
         
         for (id, path) in paths.into_iter().enumerate() {
-            images.push(Image {
+            images.push(ImageData {
                 id: Id(id as u32),
                 path,
             });
@@ -47,7 +38,6 @@ impl Image {
             )
         })
         .await??;
-
         Ok(Rgba {
             width: image.width(),
             height: image.height(),

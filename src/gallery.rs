@@ -279,9 +279,9 @@ fn card<'a>(
                 image(&thumbnail.handle)
                     .width(Fill)
                     .height(Fill)
-                    .content_fit(ContentFit::Cover)
+                    .content_fit(ContentFit::Contain)
                     .opacity(thumbnail.fade_in.interpolate(0.0, 1.0, now))
-                    .scale(thumbnail.zoom.interpolate(1.0, 1.1, now))
+                    .scale(thumbnail.zoom.interpolate(1.0, 1.02, now))
                     .into()
             } else {
                 horizontal_space().into()
